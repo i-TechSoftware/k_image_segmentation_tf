@@ -98,8 +98,7 @@ def VGGSegnet(n_classes, input_height=250, input_width=250, vgg_level=3):
     return model
 
 
-if __name__ == '__main__':
-    m = VGGSegnet(101)
-    from keras.utils import plot_model
-
-    plot_model(m, show_shapes=True, to_file='model.png')
+#if __name__ == '__main__':
+#    m = VGGSegnet(101)
+#    from keras.utils import plot_model
+#   plot_model(m, show_shapes=True, to_file='model.png')

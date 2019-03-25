@@ -1,6 +1,7 @@
 from keras import backend as K
 import argparse
 import Models, LoadBatches
+import plotChart
 
 K.set_image_data_format('channels_last')  # TF dimension ordering in this code
 
@@ -72,7 +73,9 @@ if validate:
     G2 = LoadBatches.imageSegmentationGenerator(val_images_path, val_segs_path, val_batch_size, n_classes, input_height,
                                                 input_width, output_height, output_width)
 
-m.fit_generator(G, steps_per_epoch=512, epochs=epochs)
+history = m.fit_generator(G, steps_per_epoch=512, epochs=epochs)
+
+plotChart.PlotHistory(history)
 m.save_weights(save_weights_path + ".w")
 
 # if not validate:

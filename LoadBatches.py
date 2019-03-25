@@ -8,6 +8,8 @@ def getImageArr(path, width, height, imgNorm="sub_mean", odering='channels_last'
 	try:
 		img = cv2.imread(path, 1)
 
+		orig_height, orig_width, channels = img.shape
+
 		if imgNorm == "sub_and_divide":
 			img = np.float32(cv2.resize(img, (width, height))) / 127.5 - 1
 		elif imgNorm == "sub_mean":
@@ -23,13 +25,13 @@ def getImageArr(path, width, height, imgNorm="sub_mean", odering='channels_last'
 
 		if odering == 'channels_first':
 			img = np.rollaxis(img, 2, 0)
-		return img
+		return img, orig_height, orig_width,
 	except Exception, e:
 		print path, e
 		img = np.zeros((height, width, 3))
 		if odering == 'channels_first':
 			img = np.rollaxis(img, 2, 0)
-		return img
+		return img, orig_height, orig_width,
 
 
 def getSegmentationArr(path, nClasses, width, height):
@@ -72,7 +74,8 @@ def imageSegmentationGenerator(images_path, segs_path, batch_size, n_classes, in
 		Y = []
 		for _ in range(batch_size):
 			im, seg = zipped.next()
-			X.append(getImageArr(im, input_width, input_height))
+			_X_, oh, ow = getImageArr(im, input_width, input_height)
+			X.append(_X_)
 			Y.append(getSegmentationArr(seg, n_classes, output_width, output_height))
 		yield np.array(X), np.array(Y)
 
