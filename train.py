@@ -56,8 +56,8 @@ modelFN = modelFns[model_name]
 m = modelFN(n_classes, input_height=input_height, input_width=input_width)
 m.compile(loss='categorical_crossentropy', optimizer=optimizer_name, metrics=['accuracy'])
 
-if len(load_weights) > 0:
-    m.load_weights(load_weights)
+#if len(load_weights) > 0:
+ #   m.load_weights(load_weights)
 
 
 
