@@ -8,10 +8,10 @@ VGG_Weights_path = file_path + "/../data/vgg16_weights_tf_dim_ordering_tf_kernel
 
 
 def VGGSegnet(n_classes, input_height=250, input_width=250, vgg_level=3):
-    img_input = Input(shape=(input_height, input_width, 3))
 
+    img_input = Input(shape=(input_height, input_width, 3))
     x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv1') \
-        (img_input)
+            (img_input)
 
     x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv2')(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool')(x)
@@ -83,11 +83,13 @@ def VGGSegnet(n_classes, input_height=250, input_width=250, vgg_level=3):
 
     o = Conv2D(n_classes, (3, 3), padding='same')(o)
     o_shape = Model(img_input, o).output_shape
+
+    #with K.tf.device('/cpu:0'):
     outputHeight = o_shape[2]
     outputWidth = o_shape[1]
-
-    o = (Reshape(( outputHeight * outputWidth, -1)))(o)
+    o = (Reshape((outputHeight * outputWidth, -1)))(o)
     o = (Permute((1, 2)))(o)
+
     o = (Activation('softmax'))(o)
     model = Model(img_input, o)
     model.outputWidth = outputWidth

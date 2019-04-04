@@ -1,7 +1,15 @@
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
 from keras import backend as K
+from keras.callbacks import ModelCheckpoint
 import argparse
 import Models, LoadBatches
 import plotChart
+
+# config = tf.ConfigProto()
+# config.gpu_options.per_process_gpu_memory_fraction = 0.9
+# session = tf.Session(config=config)
+# K.set_session(session)
 
 K.set_image_data_format('channels_last')  # TF dimension ordering in this code
 
@@ -18,10 +26,10 @@ parser.add_argument("--val_images", type=str, default="")
 parser.add_argument("--val_annotations", type=str, default="")
 
 parser.add_argument("--epochs", type=int, default=5)
-parser.add_argument("--batch_size", type=int, default=2)
-parser.add_argument("--val_batch_size", type=int, default=2)
-#parser.add_argument("--load_weights", type=str, default="data/vgg19_weights_tf_dim_ordering_tf_kernels.h5")
-parser.add_argument("--load_weights", type=str, default="data/50Epochs_224.hdf5")
+parser.add_argument("--batch_size", type=int, default=1)
+parser.add_argument("--val_batch_size", type=int, default=1)
+parser.add_argument("--load_weights", type=str, default="data/weights.best.hdf5")
+#parser.add_argument("--load_weights", type=str, default="data/50Epochs_224.hdf5")
 
 parser.add_argument("--model_name", type=str, default="vgg_segnet")
 parser.add_argument("--optimizer_name", type=str, default="adadelta")
@@ -50,14 +58,14 @@ if validate:
     val_batch_size = args.val_batch_size
 
 modelFns = {'vgg_segnet': Models.VGGSegnet.VGGSegnet, 'vgg_unet': Models.VGGUnet.VGGUnet,
-            'vgg_unet2': Models.VGGUnet.VGGUnet2, 'fcn8': Models.FCN8.FCN8, 'fcn32': Models.FCN32.FCN32}
+            'vgg_unet2': Models.VGGUnet.VGGUnet2, 'vgg_unet3': Models.VGGUnet.VGGUnet3, 'fcn8': Models.FCN8.FCN8, 'fcn32': Models.FCN32.FCN32}
 modelFN = modelFns[model_name]
 
 m = modelFN(n_classes, input_height=input_height, input_width=input_width)
 m.compile(loss='categorical_crossentropy', optimizer=optimizer_name, metrics=['accuracy'])
 
-#if len(load_weights) > 0:
- #   m.load_weights(load_weights)
+if len(load_weights) > 0:
+    m.load_weights(load_weights, reshape=True)
 
 
 
@@ -69,14 +77,15 @@ output_width = m.outputWidth
 G = LoadBatches.imageSegmentationGenerator(train_images_path, train_segs_path, train_batch_size, n_classes,
                                            input_height, input_width, output_height, output_width)
 
-if validate:
-    G2 = LoadBatches.imageSegmentationGenerator(val_images_path, val_segs_path, val_batch_size, n_classes, input_height,
+G2 = LoadBatches.imageSegmentationGenerator(val_images_path, val_segs_path, val_batch_size, n_classes, input_height,
                                                 input_width, output_height, output_width)
+checkpoint = ModelCheckpoint("weights/weights.best.hdf5", monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+callbacks_list = [checkpoint]
 
-history = m.fit_generator(G, steps_per_epoch=512, epochs=epochs)
+history = m.fit_generator(G, steps_per_epoch=367, validation_data=G2, validation_steps=101, epochs=epochs, callbacks=callbacks_list)
 
 plotChart.PlotHistory(history)
-m.save_weights(save_weights_path + ".w")
+m.save_weights(save_weights_path + ".hdf5")
 
 # if not validate:
 #     for ep in range(epochs):

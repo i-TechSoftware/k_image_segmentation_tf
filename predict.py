@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import random
 import os
+from keras import backend as K
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--load_weights_path", type=str)
@@ -33,11 +34,12 @@ modelFns = {'vgg_segnet': Models.VGGSegnet.VGGSegnet, 'vgg_unet': Models.VGGUnet
             'vgg_unet2': Models.VGGUnet.VGGUnet2, 'fcn8': Models.FCN8.FCN8, 'fcn32': Models.FCN32.FCN32}
 modelFN = modelFns[model_name]
 
-m = modelFN(n_classes, input_height=input_height, input_width=input_width)
-m.load_weights(args.load_weights_path)
-m.compile(loss='categorical_crossentropy',
-          optimizer='adadelta',
-          metrics=['accuracy'])
+with K.tf.device('/cpu:0'):
+    m = modelFN(n_classes, input_height=input_height, input_width=input_width)
+    m.load_weights(args.load_weights_path)
+    m.compile(loss='categorical_crossentropy',
+              optimizer='adadelta',
+              metrics=['accuracy'])
 
 output_height = m.outputHeight
 output_width = m.outputWidth
@@ -51,6 +53,25 @@ else:
 
 colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for _ in range(n_classes)]
 
+def GetColorClass(n_class):
+    """ store label data to colored image """
+    Sky = [128, 128, 128]
+    Building = [128, 0, 0]
+    Pole = [192, 192, 128]
+    Road = [128, 64, 128]
+    Pavement = [60, 40, 222]
+    Tree = [128, 128, 0]
+    SignSymbol = [192, 128, 128]
+    Fence = [64, 64, 128]
+    Car = [64, 0, 128]
+    Pedestrian = [64, 64, 0]
+    Bicyclist = [0, 128, 192]
+    Unlabelled = [0, 0, 0]
+    label_colours = np.array(
+        [Sky, Building, Pole, Road, Pavement, Tree, SignSymbol, Fence, Car, Pedestrian, Bicyclist,
+         Unlabelled])
+    return label_colours[n_class]
+
 
 def PredictAndSave(imgName):
     print 'Predecate file: '+imgName
@@ -58,13 +79,14 @@ def PredictAndSave(imgName):
     outName = os.path.join(args.output_path, filename)
         #imgName.replace(images_path, args.output_path)
     X, orig_height, orig_width = LoadBatches.getImageArr(imgName, args.input_width, args.input_height)
-    pr = m.predict(np.array([X]))[0]
-    pr = pr.reshape((output_height, output_width, n_classes)).argmax(axis=2)
-    seg_img = np.zeros((output_height, output_width, 3))
-    for c in range(n_classes):
-        seg_img[:, :, 0] += ((pr[:, :] == c) * (colors[c][0])).astype('uint8')
-        seg_img[:, :, 1] += ((pr[:, :] == c) * (colors[c][1])).astype('uint8')
-        seg_img[:, :, 2] += ((pr[:, :] == c) * (colors[c][2])).astype('uint8')
+    with K.tf.device('/cpu:0'):
+        pr = m.predict(np.array([X]))[0]
+        pr = pr.reshape((output_height, output_width, n_classes)).argmax(axis=2)
+        seg_img = np.zeros((output_height, output_width, 3))
+        for c in range(n_classes):
+            seg_img[:, :, 0] += ((pr[:, :] == c) * (GetColorClass(c)[0])).astype('uint8')
+            seg_img[:, :, 1] += ((pr[:, :] == c) * (GetColorClass(c)[1])).astype('uint8')
+            seg_img[:, :, 2] += ((pr[:, :] == c) * (GetColorClass(c)[2])).astype('uint8')
 
     # cv2.imshow('Segmental image', seg_img)
     # cv2.waitKey()
@@ -73,6 +95,8 @@ def PredictAndSave(imgName):
     print 'Save file to:' + outName
 
     cv2.imwrite(outName, seg_img)
+    cv2.imshow('Predict', seg_img)
+    cv2.waitKey()
     return 0
 
 

@@ -23,9 +23,9 @@ from keras import backend as K
 
 
 
-def Unet (nClasses , optimizer=None , input_width=360 , input_height=480 , nChannels=1 ): 
+def Unet (nClasses , optimizer=None , input_width=250 , input_height=250 , nChannels=3 ):
     
-    inputs = Input((nChannels, input_height, input_width))
+    inputs = Input((input_height, input_width,nChannels))
     conv1 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(inputs)
     conv1 = Dropout(0.2)(conv1)
     conv1 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(conv1)
