@@ -5,6 +5,7 @@ from keras.callbacks import ModelCheckpoint
 import argparse
 import Models, LoadBatches
 import plotChart
+from keras.optimizers import *
 
 # config = tf.ConfigProto()
 # config.gpu_options.per_process_gpu_memory_fraction = 0.9
@@ -33,6 +34,8 @@ parser.add_argument("--load_weights", type=str, default="data/weights.best.hdf5"
 
 parser.add_argument("--model_name", type=str, default="vgg_segnet")
 parser.add_argument("--optimizer_name", type=str, default="adadelta")
+#adadelta
+#SGD
 
 args = parser.parse_args()
 
@@ -57,15 +60,16 @@ if validate:
     val_segs_path = args.val_annotations
     val_batch_size = args.val_batch_size
 
-modelFns = {'vgg_segnet': Models.VGGSegnet.VGGSegnet, 'vgg_unet': Models.VGGUnet.VGGUnet,
+modelFns = {'vgg_segnet': Models.VGGSegnet.VGGSegnet, 'vgg_unet': Models.VGGUnet.VGGUnet,'unet': Models.Unet.Unet,
             'vgg_unet2': Models.VGGUnet.VGGUnet2, 'vgg_unet3': Models.VGGUnet.VGGUnet3, 'fcn8': Models.FCN8.FCN8, 'fcn32': Models.FCN32.FCN32}
 modelFN = modelFns[model_name]
 
 m = modelFN(n_classes, input_height=input_height, input_width=input_width)
+#K.optimizers.SGD(lr=0.01, momentum=0.1, decay=0.0, nesterov=False)
 m.compile(loss='categorical_crossentropy', optimizer=optimizer_name, metrics=['accuracy'])
 
-if len(load_weights) > 0:
-    m.load_weights(load_weights, reshape=True)
+#if len(load_weights) > 0:
+#    m.load_weights(load_weights, reshape=True)
 
 
 
@@ -73,6 +77,9 @@ print "Model output shape", m.output_shape
 
 output_height = m.outputHeight
 output_width = m.outputWidth
+
+print output_height
+print output_width
 
 G = LoadBatches.imageSegmentationGenerator(train_images_path, train_segs_path, train_batch_size, n_classes,
                                            input_height, input_width, output_height, output_width)
@@ -82,7 +89,7 @@ G2 = LoadBatches.imageSegmentationGenerator(val_images_path, val_segs_path, val_
 checkpoint = ModelCheckpoint("weights/weights.best.hdf5", monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 callbacks_list = [checkpoint]
 
-history = m.fit_generator(G, steps_per_epoch=367, validation_data=G2, validation_steps=101, epochs=epochs, callbacks=callbacks_list)
+history = m.fit_generator(G, steps_per_epoch=95, validation_data=G2, validation_steps=50, epochs=epochs, callbacks=callbacks_list)
 
 plotChart.PlotHistory(history)
 m.save_weights(save_weights_path + ".hdf5")

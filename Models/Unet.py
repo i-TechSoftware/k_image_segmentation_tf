@@ -1,67 +1,102 @@
+from keras.models import *
+from keras.layers import *
 
+import os
 
-# todo upgrade to keras 2.0
+def get_crop_shape(target, refer):
+    # width, the 3rd dimension
+    cw = (target.get_shape()[2] - refer.get_shape()[2]).value
+    assert (cw >= 0)
+    if cw % 2 != 0:
+        cw1, cw2 = int(cw / 2), int(cw / 2) + 1
+    else:
+        cw1, cw2 = int(cw / 2), int(cw / 2)
+    # height, the 2nd dimension
+    ch = (target.get_shape()[1] - refer.get_shape()[1]).value
+    assert (ch >= 0)
+    if ch % 2 != 0:
+        ch1, ch2 = int(ch / 2), int(ch / 2) + 1
+    else:
+        ch1, ch2 = int(ch / 2), int(ch / 2)
 
-from keras.models import Sequential
-from keras.layers import Reshape
-from keras.models import Model
-from keras.layers.core import Layer, Dense, Dropout, Activation, Flatten, Reshape, Merge, Permute
-from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D, Reshape, core, Dropout
-from keras.layers.normalization import BatchNormalization
-from keras.layers.convolutional import Convolution3D, MaxPooling3D, ZeroPadding3D , ZeroPadding3D , UpSampling3D
-from keras.layers.convolutional import Convolution2D, MaxPooling2D, UpSampling2D, ZeroPadding2D
-from keras.layers.convolutional import Convolution1D, MaxPooling1D
-from keras.layers.recurrent import LSTM
-from keras.layers.advanced_activations import LeakyReLU
-from keras.optimizers import Adam , SGD
-from keras.layers.embeddings import Embedding
-from keras.utils import np_utils
-from keras.regularizers import ActivityRegularizer
-from keras import backend as K
-
-
+    return (ch1, ch2), (cw1, cw2)
 
 
 
 def Unet (nClasses , optimizer=None , input_width=250 , input_height=250 , nChannels=3 ):
-    
+    concat_axis = 3
     inputs = Input((input_height, input_width,nChannels))
-    conv1 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(inputs)
-    conv1 = Dropout(0.2)(conv1)
-    conv1 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(conv1)
+    conv1 = Conv2D(32, (3, 3), activation='relu', padding='same', name='conv1_1')(inputs)
+    conv1 = Conv2D(32, (3, 3), activation='relu', padding='same')(conv1)
     pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
-    
-    conv2 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(pool1)
-    conv2 = Dropout(0.2)(conv2)
-    conv2 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(conv2)
+
+    conv2 = Conv2D(64, (3, 3), activation='relu', padding='same')(pool1)
+    conv2 = Conv2D(64, (3, 3), activation='relu', padding='same')(conv2)
     pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
-    
-    conv3 = Convolution2D(128, 3, 3, activation='relu', border_mode='same')(pool2)
-    conv3 = Dropout(0.2)(conv3)
-    conv3 = Convolution2D(128, 3, 3, activation='relu', border_mode='same')(conv3)
 
-    up1 = merge([UpSampling2D(size=(2, 2))(conv3), conv2], mode='concat', concat_axis=1)
-    conv4 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(up1)
-    conv4 = Dropout(0.2)(conv4)
-    conv4 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(conv4)
-    
-    up2 = merge([UpSampling2D(size=(2, 2))(conv4), conv1], mode='concat', concat_axis=1)
-    conv5 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(up2)
-    conv5 = Dropout(0.2)(conv5)
-    conv5 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(conv5)
-    
-    conv6 = Convolution2D(nClasses, 1, 1, activation='relu',border_mode='same')(conv5)
-    conv6 = core.Reshape((nClasses,input_height*input_width))(conv6)
-    conv6 = core.Permute((2,1))(conv6)
+    conv3 = Conv2D(128, (3, 3), activation='relu', padding='same')(pool2)
+    conv3 = Conv2D(128, (3, 3), activation='relu', padding='same')(conv3)
+    pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
+
+    conv4 = Conv2D(256, (3, 3), activation='relu', padding='same')(pool3)
+    conv4 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv4)
+    pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
+
+    conv5 = Conv2D(512, (3, 3), activation='relu', padding='same')(pool4)
+    conv5 = Conv2D(512, (3, 3), activation='relu', padding='same')(conv5)
+    up_conv5 = UpSampling2D(size=(2, 2))(conv5)
+
+    ch, cw = get_crop_shape(conv4, up_conv5)
+    crop_conv4 = Cropping2D(cropping=(ch, cw))(conv4)
+
+    up6 = concatenate([up_conv5, crop_conv4], axis=concat_axis)
+    conv6 = Conv2D(256, (3, 3), activation='relu', padding='same')(up6)
+    conv6 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv6)
+    up_conv6 = UpSampling2D(size=(2, 2))(conv6)
+
+    ch, cw = get_crop_shape(conv3, up_conv6)
+    crop_conv3 = Cropping2D(cropping=(ch, cw))(conv3)
+
+    up7 = concatenate([up_conv6, crop_conv3], axis=concat_axis)
+    conv7 = Conv2D(128, (3, 3), activation='relu', padding='same')(up7)
+    conv7 = Conv2D(128, (3, 3), activation='relu', padding='same')(conv7)
+    up_conv7 = UpSampling2D(size=(2, 2))(conv7)
+
+    ch, cw = get_crop_shape(conv2, up_conv7)
+    crop_conv2 = Cropping2D(cropping=(ch, cw))(conv2)
+
+    up8 = concatenate([up_conv7, crop_conv2], axis=concat_axis)
+    conv8 = Conv2D(64, (3, 3), activation='relu', padding='same')(up8)
+    conv8 = Conv2D(64, (3, 3), activation='relu', padding='same')(conv8)
+    up_conv8 = UpSampling2D(size=(2, 2))(conv8)
+
+    ch, cw = get_crop_shape(conv1, up_conv8)
+    crop_conv1 = Cropping2D(cropping=(ch, cw))(conv1)
+
+    up9 = concatenate([up_conv8, crop_conv1], axis=concat_axis)
+    conv9 = Conv2D(32, (3, 3), activation='relu', padding='same')(up9)
+    conv9 = Conv2D(32, (3, 3), activation='relu', padding='same')(conv9)
+    ch, cw = get_crop_shape(inputs, conv9)
+    conv9 = ZeroPadding2D(padding=((ch[0], ch[1]), (cw[0], cw[1])))(conv9)
+
+    o = Conv2D(nClasses, (3, 3), padding='same')(conv9)
+
+    x = Reshape((nClasses, input_height * input_width))(o)
+    x = Permute((2, 1))(x)
+
+    # seg is a pixelwise probability vector sized (batch_size, rows*cols, n_classes)
+    seg = Activation("softmax")(x)
+    #conv10 = Conv2D(nClasses, (1, 1))(o)
 
 
-    conv7 = core.Activation('softmax')(conv6)
 
-    model = Model(input=inputs, output=conv7)
+    model = Model(inputs=inputs, outputs=seg)
+    model.outputWidth = input_width
+    model.outputHeight = input_height
 
-    if not optimizer is None:
-	    model.compile(loss="categorical_crossentropy", optimizer= optimizer , metrics=['accuracy'] )
-	
+    print model.summary()
+
+
     return model
 	
 	

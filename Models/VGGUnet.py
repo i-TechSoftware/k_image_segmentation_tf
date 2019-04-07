@@ -201,6 +201,8 @@ def VGGUnet2( n_classes ,  input_height=256, input_width=256 , vgg_level=3):
 
 
 	o =  Conv2D( n_classes , (3, 3) , padding='same', data_format=IMAGE_ORDERING )( o )
+
+
 	o_shape = Model(img_input , o ).output_shape
 	outputHeight = o_shape[1]
 	outputWidth = o_shape[2]

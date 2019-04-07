@@ -30,16 +30,15 @@ output_path = args.output_path
 epoch_number = args.epoch_number
 one_file_path = args.one_file_path
 
-modelFns = {'vgg_segnet': Models.VGGSegnet.VGGSegnet, 'vgg_unet': Models.VGGUnet.VGGUnet,
-            'vgg_unet2': Models.VGGUnet.VGGUnet2, 'fcn8': Models.FCN8.FCN8, 'fcn32': Models.FCN32.FCN32}
+modelFns = {'vgg_segnet': Models.VGGSegnet.VGGSegnet, 'vgg_unet': Models.VGGUnet.VGGUnet,'unet': Models.Unet.Unet,
+            'vgg_unet2': Models.VGGUnet.VGGUnet2, 'vgg_unet3': Models.VGGUnet.VGGUnet3, 'fcn8': Models.FCN8.FCN8, 'fcn32': Models.FCN32.FCN32}
 modelFN = modelFns[model_name]
 
-with K.tf.device('/cpu:0'):
-    m = modelFN(n_classes, input_height=input_height, input_width=input_width)
-    m.load_weights(args.load_weights_path)
-    m.compile(loss='categorical_crossentropy',
-              optimizer='adadelta',
-              metrics=['accuracy'])
+m = modelFN(n_classes, input_height=input_height, input_width=input_width)
+m.load_weights(args.load_weights_path)
+m.compile(loss='categorical_crossentropy',
+          optimizer='adadelta',
+          metrics=['accuracy'])
 
 output_height = m.outputHeight
 output_width = m.outputWidth
@@ -52,24 +51,38 @@ else:
     images.sort()
 
 colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for _ in range(n_classes)]
+#print colors
+
 
 def GetColorClass(n_class):
     """ store label data to colored image """
-    Sky = [128, 128, 128]
-    Building = [128, 0, 0]
-    Pole = [192, 192, 128]
-    Road = [128, 64, 128]
-    Pavement = [60, 40, 222]
-    Tree = [128, 128, 0]
-    SignSymbol = [192, 128, 128]
-    Fence = [64, 64, 128]
-    Car = [64, 0, 128]
-    Pedestrian = [64, 64, 0]
-    Bicyclist = [0, 128, 192]
+
+
+
+    _0 = [230, 230, 250]
+    _1 = [216, 191, 216]
+    _2 = [221, 160, 221]
+    _3 = [238, 130, 238]
+    _4 = [218, 112, 214]
+    _5 = [255, 0, 255]
+    _6 = [186, 85, 211]
+    _7 = [147, 112, 219]
+    _8 = [138, 43, 226]
+    _9 = [148, 0, 21]
+    A = [127, 255, 0]
+    B = [124, 252, 0]
+    C = [173, 255, 47]
+    E = [0, 255, 0]
+    H = [50, 205, 50]
+    K = [152, 251, 152]
+    M = [144, 238, 144]
+    O = [0, 250, 154]
+    P = [0, 255, 127]
+    T = [60, 179, 113]
+    X = [46, 139, 87]
+    Y = [34, 139, 34]
     Unlabelled = [0, 0, 0]
-    label_colours = np.array(
-        [Sky, Building, Pole, Road, Pavement, Tree, SignSymbol, Fence, Car, Pedestrian, Bicyclist,
-         Unlabelled])
+    label_colours = np.array([Unlabelled,_0,_1,_2,_3,_4,_5,_6,_7,_8,_9,A,B,C,E,H,K,M,O,P,T,X,Y])
     return label_colours[n_class]
 
 
@@ -79,20 +92,26 @@ def PredictAndSave(imgName):
     outName = os.path.join(args.output_path, filename)
         #imgName.replace(images_path, args.output_path)
     X, orig_height, orig_width = LoadBatches.getImageArr(imgName, args.input_width, args.input_height)
-    with K.tf.device('/cpu:0'):
-        pr = m.predict(np.array([X]))[0]
-        pr = pr.reshape((output_height, output_width, n_classes)).argmax(axis=2)
-        seg_img = np.zeros((output_height, output_width, 3))
-        for c in range(n_classes):
-            seg_img[:, :, 0] += ((pr[:, :] == c) * (GetColorClass(c)[0])).astype('uint8')
-            seg_img[:, :, 1] += ((pr[:, :] == c) * (GetColorClass(c)[1])).astype('uint8')
-            seg_img[:, :, 2] += ((pr[:, :] == c) * (GetColorClass(c)[2])).astype('uint8')
+    pr = m.predict(np.array([X]))[0]
+
+    pr = pr.reshape((output_height, output_width, n_classes)).argmax(axis=2)
+    print pr.shape
+
+    seg_img = np.zeros((output_height, output_width, 3))
+    for c in range(n_classes):
+        # print pr[80,: ]
+        #print (pr[:, :]==c)*10
+        #print ((pr[:, :] == c ) * (colors[c][0])).astype('uint8')
+
+        seg_img[:, :, 0] += ((pr[:, :] == c ) * (GetColorClass(c)[0])).astype('uint8')
+        seg_img[:, :, 1] += ((pr[:, :] == c) * (GetColorClass(c)[1])).astype('uint8')
+        seg_img[:, :, 2] += ((pr[:, :] == c) * (GetColorClass(c)[2])).astype('uint8')
 
     # cv2.imshow('Segmental image', seg_img)
     # cv2.waitKey()
     seg_img = cv2.resize(seg_img, (orig_width, orig_height))
 
-    print 'Save file to:' + outName
+    #print 'Save file to:' + outName
 
     cv2.imwrite(outName, seg_img)
     cv2.imshow('Predict', seg_img)

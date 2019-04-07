@@ -37,7 +37,7 @@ def VGGSegnet(n_classes, input_height=250, input_width=250, vgg_level=3):
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool')(x)
     f4 = x
 
-    # Block 5
+    # # Block 5
     x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv1')(x)
     x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv2')(x)
     x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv3')(x)
@@ -54,7 +54,7 @@ def VGGSegnet(n_classes, input_height=250, input_width=250, vgg_level=3):
     #vgg.load_weights(VGG_Weights_path)
     print ('=== Weights loaded')
 
-    levels = [f1, f2, f3,  f4, f5 ]
+    levels = [f1, f2, f3,  f4, f5]
     o = levels[vgg_level]
 
     o = (ZeroPadding2D((1, 1)))(o)
@@ -75,7 +75,7 @@ def VGGSegnet(n_classes, input_height=250, input_width=250, vgg_level=3):
     o = (ZeroPadding2D((1, 1)))(o)
     o = (Conv2D(64, (3, 3), padding='valid'))(o)
     o = (BatchNormalization())(o)
-
+    #
     o = (UpSampling2D((2, 2), data_format='channels_last'))(o)
     o = (ZeroPadding2D((1, 1), data_format='channels_last'))(o)
     o = (Conv2D(32, (3, 3), padding='valid', data_format='channels_last'))(o)
@@ -90,7 +90,7 @@ def VGGSegnet(n_classes, input_height=250, input_width=250, vgg_level=3):
     o = (Reshape((outputHeight * outputWidth, -1)))(o)
     o = (Permute((1, 2)))(o)
 
-    o = (Activation('softmax'))(o)
+    o = (Activation('sigmoid'))(o)
     model = Model(img_input, o)
     model.outputWidth = outputWidth
     model.outputHeight = outputHeight
